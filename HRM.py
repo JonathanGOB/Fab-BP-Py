@@ -1,7 +1,7 @@
 # install circuitpython - pip3 install adafruit-blinka
 # install ads1115 lib   - pip3 install adafruit-circuitpython-ads1x15
 # install numpy         - pip3 install numpy
-
+import signal
 import time
 from random import random
 
@@ -65,18 +65,27 @@ samples = np.zeros(arraysize, dtype=int)
 # print()
 # print(test2)
 
+def handler():
+    frames.append(channel.voltage)
+    if len(frames) == samplefreq * sampleduration:
+        # save the audio frames as .wav file
+        wavefile = wave.open(wav_output_filename, 'wb')
+        wavefile.setnchannels(1)
+        wavefile.setframerate(samplefreq)
+        wavefile.writeframes(b''.join(frames))
+        wavefile.close()
+
 try:
     input("Press enter to start")
 
-    for i in range(0,int(samplefreq*sampleduration)):
-        frames.append(channel.voltage)
 
-    # save the audio frames as .wav file
-    wavefile = wave.open(wav_output_filename, 'wb')
-    wavefile.setnchannels(1)
-    wavefile.setframerate(samplefreq)
-    wavefile.writeframes(b''.join(frames))
-    wavefile.close()
+
+    # This will fire an ITIMER_REAL signal every 0.01 seconds
+    signal.setitimer(signal.ITIMER_REAL, 0, 1/samplefreq)
+
+    # Tell the signal module to execute handler when upon signal
+    # ITIMER_REAL
+    signal.signal(signal.ITIMER_REAL, handler)
 
 except KeyboardInterrupt:
     print("Interrupted")
