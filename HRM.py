@@ -1,12 +1,13 @@
 # install circuitpython - pip3 install adafruit-blinka
 # install ads1115 lib   - pip3 install adafruit-circuitpython-ads1x15
 # install numpy         - pip3 install numpy
-import signal
+import struct
+import sched, time
 import time
-from random import random
+from random import random, getrandbits
 
 import numpy as np
-import wave
+import scipy.io.wavfile as wav
 
 # ADS1115 logic
 import board
@@ -16,9 +17,8 @@ from adafruit_ads1x15.analog_in import AnalogIn
 
 i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c)
-ads.gain = 2/3
+ads.gain = 2 / 3
 channel = AnalogIn(ads, ADS.P3)
-
 
 # ADC settings
 resolution = 16
@@ -35,13 +35,13 @@ gain = 2 / 3
 intmax = (2 ** resolution)
 Vsource = 5  # pressure sensor source voltage (V)
 samplefreq = 200  # Sampling frquency (Hz)
-sampleduration = 20  # duration of heart rate test (s)
+sampleduration = 2  # duration of heart rate test (s)
 interval = 1 / samplefreq  # sleep interval between samples (s)
 
-#all audio components
-wav_output_filename = "recordings/" + random.getrandbits(32) + '.wav' # name of .wav file
+# all audio components
+wav_output_filename = "recordings/" + str(getrandbits(32)) + '.wav'  # name of .wav file
 frames = []
-chunk = 4096 # 2^12 samples for buffer
+
 
 # Pressure transfer functions (source: MPX5050 datasheet)
 # Vout = Vsource * (0.018 * P + 0.04) (V)
@@ -56,6 +56,8 @@ def VoltageToPressure(voltage):
 
 arraysize = sampleduration * samplefreq
 samples = np.zeros(arraysize, dtype=int)
+scheduler = sched.scheduler(time.time, time.sleep)
+
 
 # test = SampleToVoltage(1197)
 # print(2 ** resolution)
@@ -68,24 +70,19 @@ samples = np.zeros(arraysize, dtype=int)
 def handler():
     frames.append(channel.voltage)
     if len(frames) == samplefreq * sampleduration:
+        print("saving file")
         # save the audio frames as .wav file
-        wavefile = wave.open(wav_output_filename, 'wb')
-        wavefile.setnchannels(1)
-        wavefile.setframerate(samplefreq)
-        wavefile.writeframes(b''.join(frames))
-        wavefile.close()
+        wav.write(wav_output_filename, samplefreq, frames)
+        print("saved file")
+
+    if len(frames) != samplefreq * sampleduration:
+        scheduler.enter(1 / samplefreq, 0, handler)
 
 try:
     input("Press enter to start")
 
-
-
-    # This will fire an ITIMER_REAL signal every 0.01 seconds
-    signal.setitimer(signal.ITIMER_REAL, 0, 1/samplefreq)
-
-    # Tell the signal module to execute handler when upon signal
-    # ITIMER_REAL
-    signal.signal(signal.ITIMER_REAL, handler)
+    scheduler.enter(0, 0, handler)
+    scheduler.run()
 
 except KeyboardInterrupt:
     print("Interrupted")
