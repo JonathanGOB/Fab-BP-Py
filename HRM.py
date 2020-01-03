@@ -77,13 +77,13 @@ def handler():
         print("saved file name: ", wav_output_filename)
 
     if len(frames) != samplefreq * sampleduration:
-        scheduler.enter(1 / samplefreq, 0, handler)
+        scheduler.enter(1 / samplefreq, 0, handler, ())
 
 
 try:
     input("Press enter to start")
 
-    scheduler.enter(0, 0, handler)
+    scheduler.enter(0, 0, handler, ())
     scheduler.run()
 
 except KeyboardInterrupt:
