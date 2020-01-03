@@ -70,13 +70,15 @@ scheduler = sched.scheduler(time.time, time.sleep)
 def handler():
     frames.append(channel.voltage)
     if len(frames) == samplefreq * sampleduration:
-        print("saving file")
+        print("saving file name: ", wav_output_filename)
+        output = np.array(frames)
         # save the audio frames as .wav file
-        wav.write(wav_output_filename, samplefreq, frames)
-        print("saved file")
+        wav.write(wav_output_filename, samplefreq, output)
+        print("saved file name: ", wav_output_filename)
 
     if len(frames) != samplefreq * sampleduration:
         scheduler.enter(1 / samplefreq, 0, handler)
+
 
 try:
     input("Press enter to start")
